@@ -1,6 +1,12 @@
 // Much of this file has been shamelessly lifted from Matt Bierner's excellent work
 // https://github.com/mattbierner/hamt
 
+// TODO: this file is a mess is huge and should be split up to make things simpler
+// TODO: extract hamt assignment
+// TODO: extract Map
+// TODO: extract MapIterator
+// TODO: extract functional interface
+
 import sha1 from "js-sha1";
 
 function hashObject(obj: any) {
@@ -143,7 +149,12 @@ const ARRAY = 4;
     @member value Value stored.
     @member _refCreatedAt Function to return the rootNode's ref
 */
-const Leaf = (hash: any, key: any, value: any, _refCreatedAt: any) => {
+const Leaf = (
+  hash: QuickHash,
+  key: any,
+  value: any,
+  _refCreatedAt: any
+): LeafTrieNode => {
   if (!_refCreatedAt) throw new Error("_refCreatedAt must be set");
   const _ref = () => hashObject({ type: LEAF, hash, key, value });
   return {
@@ -164,7 +175,11 @@ const Leaf = (hash: any, key: any, value: any, _refCreatedAt: any) => {
     @member children Array of collision children node.
     @member _refCreatedAt Function to return the rootNode's ref
 */
-const Collision = (hash: any, children: any, _refCreatedAt: any) => {
+const Collision = (
+  hash: QuickHash,
+  children: any,
+  _refCreatedAt: any
+): CollisionTrieNode => {
   const _ref = () => hashObject({ type: COLLISION, hash, children });
   return {
     type: COLLISION,
@@ -185,7 +200,11 @@ const Collision = (hash: any, children: any, _refCreatedAt: any) => {
     @member children Array of child nodes.
     @member _refCreatedAt Function to return the rootNode's ref
 */
-const IndexedNode = (mask: any, children: any, _refCreatedAt: any) => ({
+const IndexedNode = (
+  mask: any,
+  children: any,
+  _refCreatedAt: any
+): IndexedTrieNode => ({
   type: INDEX,
   mask,
   children,
@@ -201,7 +220,11 @@ const IndexedNode = (mask: any, children: any, _refCreatedAt: any) => ({
     @member children Array of child nodes.
     @member _refCreatedAt Function to return the rootNode's ref
 */
-const ArrayNode = (size: any, children: any, _refCreatedAt: any) => ({
+const ArrayNode = (
+  size: any,
+  children: any,
+  _refCreatedAt: any
+): ArrayTrieNode => ({
   type: ARRAY,
   size,
   children,
@@ -517,21 +540,15 @@ const empty__modify = (
  ******************************************************************************/
 
 class Map {
-  root: any;
-  size: any;
-
   __hamt_isMap = true;
 
-  constructor(root: any, size: any) {
-    this.root = root;
-    this.size = size;
-  }
+  constructor(public root: TrieNode | undefined, public size: number) {}
 
-  setTree(root: any, size: any) {
+  setTree(root: TrieNode, size: number) {
     return root === this.root ? this : new Map(root, size);
   }
 
-  tryGetHash(alt: any, hash: any, key: any) {
+  tryGetHash(alt: any, hash: QuickHash, key: any) {
     return tryGetHash(alt, hash, key, this);
   }
 
@@ -539,14 +556,14 @@ class Map {
     return tryGet(alt, key, this);
   }
 
-  getHash(hash: any, key: any) {
+  getHash(hash: QuickHash, key: any) {
     return getHash(hash, key, this);
   }
 
   get(key: any, alt: any) {
     return tryGet(alt, key, this);
   }
-  hasHash(hash: any, key: any) {
+  hasHash(hash: QuickHash, key: any) {
     return hasHash(hash, key, this);
   }
 
@@ -558,7 +575,7 @@ class Map {
     return hamt.isEmpty(this);
   }
 
-  modifyHash(hash: any, key: any, f: any) {
+  modifyHash(hash: QuickHash, key: any, f: any) {
     return modifyHash(f, hash, key, this);
   }
 
@@ -566,7 +583,7 @@ class Map {
     return modify(f, key, this);
   }
 
-  modifyValueHash(hash: any, key: any, f: any, defaultValue: any) {
+  modifyValueHash(hash: QuickHash, key: any, f: any, defaultValue: any) {
     return modifyValueHash(f, defaultValue, hash, key, this);
   }
 
@@ -574,7 +591,7 @@ class Map {
     return modifyValue(f, defaultValue, key, this);
   }
 
-  setHash(hash: any, key: any, value: any) {
+  setHash(hash: QuickHash, key: any, value: any) {
     return setHash(hash, key, value, this);
   }
 
@@ -582,7 +599,7 @@ class Map {
     return set(key, value, this);
   }
 
-  deleteHash(hash: any, key: any) {
+  deleteHash(hash: QuickHash, key: any) {
     return removeHash(hash, key, this);
   }
   removeHash = this.deleteHash;
@@ -627,7 +644,7 @@ class Map {
   }
 
   refsLatest() {
-    const rootRef = this.root._refCreatedAt();
+    const rootRef = this.root?._refCreatedAt();
     if (!rootRef) throw new Error("rootRef is undefined");
     return references(this, node => node._refCreatedAt() === rootRef, false);
   }
@@ -650,7 +667,7 @@ class Map {
 */
 const tryGetHash = (hamt.tryGetHash = (
   alt: any,
-  hash: any,
+  hash: QuickHash,
   key: any,
   map: any
 ) => {
@@ -709,7 +726,7 @@ const tryGet = (hamt.tryGet = (alt: any, key: any, map: any) =>
 
     Returns the value or `undefined` if none.
 */
-const getHash = (hamt.getHash = (hash: any, key: any, map: any) =>
+const getHash = (hamt.getHash = (hash: QuickHash, key: any, map: any) =>
   tryGetHash(undefined, hash, key, map));
 
 /**
@@ -725,7 +742,7 @@ const nothing = {};
 /**
     Does an entry exist for `key` in `map`? Uses custom `hash`.
 */
-const hasHash = (hamt.has = (hash: any, key: any, map: any) =>
+const hasHash = (hamt.has = (hash: QuickHash, key: any, map: any) =>
   tryGetHash(nothing, hash, key, map) !== nothing);
 
 /**
@@ -764,7 +781,7 @@ hamt.isEmpty = (map: any) => hamt.isMap(map) && !map.root;
 */
 const modifyHash = (hamt.modifyHash = (
   f: any,
-  hash: any,
+  hash: QuickHash,
   key: any,
   map: any
 ) => {
@@ -792,7 +809,7 @@ const modify = (hamt.modify = (f: any, key: any, map: any) =>
 const modifyValueHash = (hamt.modifyValueHash = (
   f: any,
   defaultValue: any,
-  hash: any,
+  hash: QuickHash,
   key: any,
   map: any
 ) => modifyHash(defaultValBind(f, defaultValue), hash, key, map));
@@ -813,7 +830,7 @@ const modifyValue = (hamt.modifyValue = (
     Returns a map with the modified value. Does not alter `map`.
 */
 const setHash = (hamt.setHash = function(
-  hash: any,
+  hash: QuickHash,
   key: any,
   value: any,
   map: any
@@ -835,7 +852,7 @@ const set = (hamt.set = (key: any, value: any, map: any) =>
     Returns a map with the value removed. Does not alter `map`.
 */
 const del = { __hamt_delete_op: true };
-const removeHash = (hamt.removeHash = (hash: any, key: any, map: any) =>
+const removeHash = (hamt.removeHash = (hash: QuickHash, key: any, map: any) =>
   modifyHash(del, hash, key, map));
 
 /**
