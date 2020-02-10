@@ -168,6 +168,10 @@ const Leaf = (
   };
 };
 
+function isLeafNode(node: any): node is LeafTrieNode {
+  return node.type === LEAF;
+}
+
 /**
     Leaf holding multiple values with the same hash but different keys.
 
@@ -191,6 +195,10 @@ const Collision = (
   };
 };
 
+function isCollisionNode(node: any): node is CollisionTrieNode {
+  return node.type === COLLISION;
+}
+
 /**
     Internal node with a sparse set of children.
 
@@ -213,6 +221,10 @@ const IndexedNode = (
   _modify: IndexedNode__modify
 });
 
+function isIndexedNode(node: any): node is IndexedTrieNode {
+  return node.type === INDEX;
+}
+
 /**
     Internal node with many children.
 
@@ -233,10 +245,18 @@ const ArrayNode = (
   _modify: ArrayNode__modify
 });
 
+function isArrayNode(node: any): node is ArrayTrieNode {
+  return node.type === ARRAY;
+}
+
 /**
-    Is `node` a leaf node?
+    Is `node` a theoretical leaf node? 
+    NOTE: this conflates collision nodes with leaf nodes. Honestly that seems odd. Why I am not sure. 
+    So I cannot use it as a TS guard function
 */
-const isLeaf = (node: any) => node.type === LEAF || node.type === COLLISION;
+function isLeaf(node: any) {
+  return node.type === LEAF || node.type === COLLISION;
+}
 
 /* Internal node operations.
  ******************************************************************************/
@@ -1110,7 +1130,74 @@ function nodeHasChildren(node: TrieNode): node is TrieNodeWithChildren {
   return !!(node as TrieNode & { children: any[] }).children;
 }
 
-const createGatherRefsReducer = (filter: (node: TrieNode) => boolean) =>
+function serializeLeaf(node: LeafTrieNode): LeafTrieNodeSerialized {
+  const { _ref, _refCreatedAt, type, hash, key, value } = node;
+  return {
+    type,
+    hash,
+    key,
+    value,
+    _ref: _ref(),
+    _refCreatedAt: _refCreatedAt(),
+    _modify: undefined
+  };
+}
+
+function serializeArrayNode(node: ArrayTrieNode): ArrayTrieNodeSerialized {
+  const { _ref, _refCreatedAt, type, size, children = [] } = node;
+
+  return {
+    type,
+    size,
+    children: children.map((c: TrieNode) => ({ _ref: c._ref() })),
+    _ref: _ref(),
+    _refCreatedAt: _refCreatedAt(),
+    _modify: undefined
+  };
+}
+
+function serializeCollisionNode(
+  node: CollisionTrieNode
+): CollisionTrieNodeSerialized {
+  const { _ref, _refCreatedAt, type, hash, children = [] } = node;
+  return {
+    type,
+    hash,
+    children: children.map((c: TrieNode) => ({ _ref: c._ref() })),
+    _ref: _ref(),
+    _refCreatedAt: _refCreatedAt(),
+    _modify: undefined
+  };
+}
+
+function serializeIndexedNode(
+  node: IndexedTrieNode
+): IndexedTrieNodeSerialized {
+  const { _ref, _refCreatedAt, type, mask, children = [] } = node;
+  return {
+    type,
+    mask,
+    children: children.map((c: TrieNode) => ({ _ref: c._ref() })),
+    _ref: _ref(),
+    _refCreatedAt: _refCreatedAt(),
+    _modify: undefined
+  };
+}
+
+// function serializeNonLeafNode() {}
+
+type NodeFilterFn = (node: TrieNode) => boolean;
+
+function getSerializeNode(node: TrieNode): TrieNodeSerialized {
+  if (isLeafNode(node)) return serializeLeaf(node);
+  if (isArrayNode(node)) return serializeArrayNode(node);
+  if (isCollisionNode(node)) return serializeCollisionNode(node);
+  if (isIndexedNode(node)) return serializeIndexedNode(node);
+
+  return serializeLeaf(node); // This will not be reached in theory
+}
+
+const createGatherRefsReducer = (filter: NodeFilterFn) =>
   function gatherRefsReducer(acc: RefLookup, node?: TrieNode) {
     if (!node) return acc;
 
@@ -1119,41 +1206,48 @@ const createGatherRefsReducer = (filter: (node: TrieNode) => boolean) =>
     }
 
     if (filter(node)) {
-      const { _modify, _ref, _refCreatedAt, ...nodeProps } = node;
-      const { children } = node as any;
+      const serialized = getSerializeNode(node);
 
-      const childrenToMerge = children
-        ? {
-            children: children.map((c: TrieNode) => ({
-              _ref: c._ref()
-            })) as TrieNodeReference[]
-          }
-        : {};
-
-      const serializedNode = {
-        ...nodeProps,
-        ...childrenToMerge,
-        _ref: _ref(),
-        _refCreatedAt: _refCreatedAt(),
-        _modify: undefined
-      } as TrieNodeSerialized;
-
-      acc[_ref()] = serializedNode;
+      acc[serialized._ref] = serialized;
     }
     return acc;
   };
 
-function toJS(map: any) {
+function toJS(map: Map) {
+  let isArray = true;
+  for (const key of map.keys()) {
+    if (typeof key !== "number") {
+      isArray = false;
+    }
+  }
+
   return fold(
     (acc: any, v: any, k: any) => {
-      acc[k] = v;
+      acc[k] = v.toJS ? v.toJS() : v;
       return acc;
     },
-    {},
+    isArray ? [] : {},
     map
   );
 }
 
+/* fromJS
+ ******************************************************************************/
+/**
+  Create a HAMT from a standard JS object
+*/
+function fromJS(obj: any): Map {
+  if (isMap(obj)) return obj;
+
+  const isArray = Array.isArray(obj);
+  return Object.entries(obj).reduce((map, [key, val]) => {
+    return map.set(
+      isArray ? Number(key) : key,
+      typeof val === "object" ? fromJS(val) : val
+    );
+  }, hamt.empty);
+}
+hamt.fromJS = fromJS;
 /* Export
  ******************************************************************************/
 export default hamt;
