@@ -140,7 +140,7 @@ const LEAF = 1;
 const COLLISION = 2;
 const INDEX = 3;
 const ARRAY = 4;
-
+const MAP = 5;
 /**
     Leaf holding a value.
 
@@ -669,7 +669,7 @@ class Map {
     return references(this, node => node._refCreatedAt() === rootRef, false);
   }
 
-  refs(filter = (a: any) => a, options = { includeRootKey: true }) {
+  refs(filter = id, options = { includeRootKey: true }) {
     return references(this, filter, options.includeRootKey);
   }
 
@@ -1112,7 +1112,7 @@ function rebuildNode(
 
 function references(
   node: TrieNode | Map,
-  filter = (a: any) => a,
+  filter = id,
   includeRootKey = true
 ): RefLookup {
   const trieNode: TrieNode | undefined = isMap(node) ? node.root : node;
@@ -1184,12 +1184,20 @@ function serializeIndexedNode(
   };
 }
 
-// function serializeNonLeafNode() {}
+function serializeMap(map: Map): MapNodeSerialized {
+  if (!map.root) {
+    throw new Error("Cannot serialize an empty map.");
+  }
+  return {
+    type: MAP,
+    _root: map.root._ref(),
+    _ref: sha1(map.root._ref())
+  };
+}
 
 type NodeFilterFn = (node: TrieNode) => boolean;
 
 function getSerializeNode(node: TrieNode): TrieNodeSerialized {
-  if (isLeafNode(node)) return serializeLeaf(node);
   if (isArrayNode(node)) return serializeArrayNode(node);
   if (isCollisionNode(node)) return serializeCollisionNode(node);
   if (isIndexedNode(node)) return serializeIndexedNode(node);
@@ -1208,6 +1216,35 @@ const createGatherRefsReducer = (filter: NodeFilterFn) =>
     if (filter(node)) {
       const serialized = getSerializeNode(node);
 
+      // TODO: Refactor leafnode handling
+      // The following should all somehow go in the serialise leaf function.
+      // Problem is we have side effects of editing the accumulator
+      // There are neater ways to do this
+      if (isLeafNode(node)) {
+        const serializedLeaf = serialized as LeafTrieNodeSerialized;
+        const map = node.value;
+
+        if (isMap(map)) {
+          const subRefs = map.refs(filter, { includeRootKey: false });
+
+          if (map.root) {
+            const serializedMap = serializeMap(map);
+            const mapRef = serializedMap._ref;
+            const serializedMapPointer = { _ref: mapRef };
+
+            // TODO: Move merging objects out to happen once
+            // This is pretty darn slow as happens every
+            // time a map is found should happen at the end on a big sweep
+            acc = Object.assign(acc, subRefs, {
+              [mapRef]: serializedMap
+            });
+
+            serializedLeaf.value = serializedMapPointer;
+          } else {
+            serializedLeaf.value = {};
+          }
+        }
+      }
       acc[serialized._ref] = serialized;
     }
     return acc;

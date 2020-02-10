@@ -18,14 +18,22 @@ type TrieNodeCommon = {
   _modify: ModifyFn;
   children?: TrieNode[];
 };
-type TrieNodeReference = {
+
+type MapNodeSerialized = {
+  type: 5;
+  _root: string;
   _ref: string;
 };
+
+type TrieNodeReferencePointer = {
+  _ref: string;
+};
+
 type TrieNodeSerializedCommon = {
   _refCreatedAt: string;
   _ref: string;
   _modify: undefined;
-  children?: TrieNodeReference[];
+  children?: TrieNodeReferencePointer[];
 };
 
 type LeafTrieNodeShape = {

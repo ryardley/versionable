@@ -93,28 +93,35 @@ describe("refs()", () => {
     expect(map1.refs()).toEqual(map2.refs());
   });
 
-  it.only("should gather refs of nested maps", () => {
-    // const map = hamt.empty.set("nested", hamt.empty.set("foo", "foo"));
-    // expect(map.refs()).toBe({
-    //   "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7": {
-    //     _modify: undefined,
-    //     _ref: "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7",
-    //     _refCreatedAt: -1,
-    //     hash: -1048944393,
-    //     key: "nested",
-    //     type: 1,
-    //     value: { _ref: "12345687" }
-    //   },
-    //   "12345687": {
-    //     _ref: "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7",
-    //     _refCreatedAt: -1,
-    //     hash: -17623547612,
-    //     key: "nested",
-    //     type: 5,
-    //     root: { _ref: "87623487236" }
-    //   },
-    //   _root: "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7"
-    // });
+  it("should gather refs of nested maps", () => {
+    const map = hamt.empty.set("nested", hamt.empty.set("foo", "foo"));
+
+    expect(map.refs()).toMatchObject({
+      _root: "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7",
+      "6763a66d40744540e9b540bc5f5ba5cae1ee97bf": {
+        type: 1,
+        hash: 101574,
+        key: "foo",
+        value: "foo",
+        _ref: "6763a66d40744540e9b540bc5f5ba5cae1ee97bf",
+        _refCreatedAt: -1
+      },
+      "561a6e3da06cafa48f4951951711f2faf56c6655": {
+        type: 5,
+        _root: "6763a66d40744540e9b540bc5f5ba5cae1ee97bf",
+        _ref: "561a6e3da06cafa48f4951951711f2faf56c6655"
+      },
+      "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7": {
+        type: 1,
+        hash: -1048944393,
+        key: "nested",
+        value: {
+          _ref: "561a6e3da06cafa48f4951951711f2faf56c6655"
+        },
+        _ref: "7a2e4df7f887e9db30ac9dcdcfc25fbd7caca8d7",
+        _refCreatedAt: -1
+      }
+    });
   });
 });
 
