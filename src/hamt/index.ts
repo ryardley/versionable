@@ -758,7 +758,11 @@ hamt.empty = new Map(undefined, 0);
 /**
     Is `value` a map?
 */
-hamt.isMap = (value: any) => !!(value && value.__hamt_isMap);
+function isMap(value: any): value is Map {
+  return !!(value && value.__hamt_isMap);
+}
+
+hamt.isMap = isMap;
 
 /**
     Does `map` contain any elements?
@@ -1086,11 +1090,15 @@ function rebuildNode(
   Get an object lookup table containing all the node references indexed by objectHash
 */
 
-function references(node: any, filter = (a: any) => a, includeRootKey = true) {
-  const treeNode = node.root ? node.root : node;
+function references(
+  node: TrieNode | Map,
+  filter = (a: any) => a,
+  includeRootKey = true
+) {
+  const treeNode: TrieNode | undefined = isMap(node) ? node.root : node;
   return createGatherRefsReducer(filter)(
-    includeRootKey ? { _root: treeNode._ref() } : {},
-    node.root ? node.root : node
+    includeRootKey ? { _root: treeNode?._ref() } : {},
+    treeNode
   );
 }
 
