@@ -16,31 +16,63 @@ type TrieNodeCommon = {
   _refCreatedAt: RefFn;
   _ref: RefFn;
   _modify: ModifyFn;
+  children?: TrieNode[];
+};
+type TrieNodeReference = {
+  _ref: string;
+};
+type TrieNodeSerializedCommon = {
+  _refCreatedAt: string;
+  _ref: string;
+  _modify: undefined;
+  children?: TrieNodeReference[];
 };
 
-type LeafTrieNode = TrieNodeCommon & {
+type LeafTrieNodeShape = {
   type: 1;
   hash: number;
   key: any;
   value: any;
 };
 
-type CollisionTrieNode = TrieNodeCommon & {
+type CollisionTrieNodeShape = {
   type: 2;
   hash: number;
-  children: TrieNode[];
 };
 
-type IndexedTrieNode = TrieNodeCommon & {
+type IndexedTrieNodeShape = {
   type: 3;
   mask: number;
-  children: TrieNode[];
 };
 
-type ArrayTrieNode = TrieNodeCommon & {
+type ArrayTrieNodeShape = {
   type: 4;
   size: number;
-  children: TrieNode[];
 };
 
-type TrieNode = CollisionTrieNode | LeafTrieNode | IndexedTrieNode;
+type LeafTrieNode = LeafTrieNodeShape & TrieNodeCommon;
+type CollisionTrieNode = CollisionTrieNodeShape & TrieNodeCommon;
+type IndexedTrieNode = IndexedTrieNodeShape & TrieNodeCommon;
+type ArrayTrieNode = ArrayTrieNodeShape & TrieNodeCommon;
+
+type LeafTrieNodeSerialized = LeafTrieNodeShape & TrieNodeSerializedCommon;
+type CollisionTrieNodeSerialized = CollisionTrieNodeShape &
+  TrieNodeSerializedCommon;
+type IndexedTrieNodeSerialized = IndexedTrieNodeShape &
+  TrieNodeSerializedCommon;
+type ArrayTrieNodeSerialized = ArrayTrieNodeShape & TrieNodeSerializedCommon;
+
+type TrieNodeWithChildren = (
+  | CollisionTrieNode
+  | IndexedTrieNode
+  | ArrayTrieNode
+) & { children: TrieNode[] };
+type TrieNode = TrieNodeWithChildren | LeafTrieNode;
+
+type TrieNodeSerialized =
+  | LeafTrieNodeSerialized
+  | CollisionTrieNodeSerialized
+  | IndexedTrieNodeSerialized
+  | ArrayTrieNodeSerialized;
+
+type RefLookup = { [k: string]: string | TrieNodeSerialized };

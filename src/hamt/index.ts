@@ -1094,30 +1094,51 @@ function references(
   node: TrieNode | Map,
   filter = (a: any) => a,
   includeRootKey = true
-) {
-  const treeNode: TrieNode | undefined = isMap(node) ? node.root : node;
-  return createGatherRefsReducer(filter)(
-    includeRootKey ? { _root: treeNode?._ref() } : {},
-    treeNode
-  );
+): RefLookup {
+  const trieNode: TrieNode | undefined = isMap(node) ? node.root : node;
+
+  if (!trieNode) return {};
+
+  const lookupTable: RefLookup = includeRootKey
+    ? { _root: trieNode._ref() }
+    : {};
+
+  return createGatherRefsReducer(filter)(lookupTable, trieNode);
 }
 
-const createGatherRefsReducer = (filter: any) =>
-  function gatherRefsReducer(acc: any, node: any) {
-    if (node.children) {
+function nodeHasChildren(node: TrieNode): node is TrieNodeWithChildren {
+  return !!(node as TrieNode & { children: any[] }).children;
+}
+
+const createGatherRefsReducer = (filter: (node: TrieNode) => boolean) =>
+  function gatherRefsReducer(acc: RefLookup, node?: TrieNode) {
+    if (!node) return acc;
+
+    if (nodeHasChildren(node)) {
       acc = node.children.reduce(gatherRefsReducer, acc);
     }
-    if (node._ref && filter(node)) {
-      const { _modify, _ref, _refCreatedAt, children, ...n } = node;
-      acc[node._ref()] = {
-        ...n,
+
+    if (filter(node)) {
+      const { _modify, _ref, _refCreatedAt, ...nodeProps } = node;
+      const { children } = node as any;
+
+      const childrenToMerge = children
+        ? {
+            children: children.map((c: TrieNode) => ({
+              _ref: c._ref()
+            })) as TrieNodeReference[]
+          }
+        : {};
+
+      const serializedNode = {
+        ...nodeProps,
+        ...childrenToMerge,
         _ref: _ref(),
         _refCreatedAt: _refCreatedAt(),
-        _modify: undefined,
-        ...(children
-          ? { children: children.map((c: any) => ({ _ref: c._ref() })) }
-          : {})
-      };
+        _modify: undefined
+      } as TrieNodeSerialized;
+
+      acc[_ref()] = serializedNode;
     }
     return acc;
   };
