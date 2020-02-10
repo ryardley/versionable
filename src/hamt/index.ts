@@ -1,3 +1,6 @@
+// Much of this file has been shamelessly lifted from Matt Bierner's excellent work
+// https://github.com/mattbierner/hamt
+
 import { xxHash32 } from "js-xxhash";
 
 function hashObject(obj: any) {
