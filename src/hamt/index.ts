@@ -1,10 +1,10 @@
 // Much of this file has been shamelessly lifted from Matt Bierner's excellent work
 // https://github.com/mattbierner/hamt
 
-import { xxHash32 } from "js-xxhash";
+import sha1 from "js-sha1";
 
 function hashObject(obj: any) {
-  return xxHash32(JSON.stringify(obj));
+  return sha1(JSON.stringify(obj));
 }
 
 const id = (a: any) => a;

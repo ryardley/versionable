@@ -12,6 +12,7 @@
     "@babel/core": "^7.8.4",
     "@babel/preset-env": "^7.8.4",
     "@babel/preset-typescript": "^7.8.3",
+    "@types/chai": "^4.2.8",
     "@types/jest": "^25.1.2",
     "babel-jest": "^25.1.0",
     "chai": "^4.2.0",
@@ -21,8 +22,7 @@
     "typescript": "^3.7.5"
   },
   "dependencies": {
-    "@types/chai": "^4.2.8",
     "crypto-hash": "^1.2.2",
-    "js-xxhash": "^1.0.4"
+    "js-sha1": "^0.6.0"
   }
 }
