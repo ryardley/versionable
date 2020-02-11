@@ -8,6 +8,23 @@
 // TODO: extract functional interface
 
 import sha1 from "js-sha1";
+import {
+  QuickHash,
+  LeafTrieNode,
+  CollisionTrieNode,
+  IndexedTrieNode,
+  ArrayTrieNode,
+  TrieNode,
+  TrieNodeSerialized,
+  TrieNodeReferencePointer,
+  RefLookup,
+  TrieNodeWithChildren,
+  LeafTrieNodeSerialized,
+  ArrayTrieNodeSerialized,
+  CollisionTrieNodeSerialized,
+  IndexedTrieNodeSerialized,
+  MapNodeSerialized
+} from "./types";
 
 function hashObject(obj: any) {
   return sha1(JSON.stringify(obj));
@@ -1064,27 +1081,52 @@ const modifyFnTable = {
   [LEAF]: Leaf__modify,
   [COLLISION]: Collision__modify,
   [INDEX]: IndexedNode__modify,
-  [ARRAY]: ArrayNode__modify
+  [ARRAY]: ArrayNode__modify,
+  [MAP]: undefined
 };
 
-function rebuildNode(
-  node: {
-    type: keyof typeof modifyFnTable;
-    children: any[];
-    _refCreatedAt: () => any;
-    _ref: () => any;
-  },
-  refs: any
-): any {
+type SerializedNodeWithRefPointer = TrieNodeSerialized & {
+  children: TrieNodeReferencePointer[];
+};
+
+function isChildSerializedNode(
+  node: any
+): node is SerializedNodeWithRefPointer {
+  return node.type !== MAP && node.type !== LEAF;
+}
+
+function isLeafSerializedNode(node: any): node is LeafTrieNodeSerialized {
+  return node.type === LEAF;
+}
+
+function isMapSerializedNode(node: any): node is MapNodeSerialized {
+  return node.type === MAP;
+}
+
+function rebuildNode(node: TrieNodeSerialized, refs: RefLookup): any {
+  let childrenToSpread = {};
+  if (isChildSerializedNode(node)) {
+    childrenToSpread = {
+      children: node.children.map(({ _ref }: TrieNodeReferencePointer) => {
+        const refNode = refs[_ref] as TrieNodeSerialized;
+        return rebuildNode(refNode, refs);
+      })
+    };
+  }
+
+  let valueIfMap: any = {};
+  if (isLeafSerializedNode(node)) {
+    const mapNode = refs[node.value._ref];
+    if (mapNode && isMapSerializedNode(mapNode)) {
+      const rootNode = refs[mapNode._root] as TrieNodeSerialized;
+      valueIfMap.value = hamt.empty.setTree(rebuildNode(rootNode, refs));
+    }
+  }
+
   return {
     ...node,
-    ...(node.children
-      ? {
-          children: node.children.map(({ _ref }: any) =>
-            rebuildNode(refs[_ref], refs)
-          )
-        }
-      : {}),
+    ...valueIfMap,
+    ...childrenToSpread,
     _ref: () => node._ref,
     _refCreatedAt: () => node._refCreatedAt,
     _modify: modifyFnTable[node.type]
@@ -1188,10 +1230,14 @@ function serializeMap(map: Map): MapNodeSerialized {
   if (!map.root) {
     throw new Error("Cannot serialize an empty map.");
   }
+  const _rootRef = map.root._ref();
+  const _ref = sha1(_rootRef);
   return {
     type: MAP,
-    _root: map.root._ref(),
-    _ref: sha1(map.root._ref())
+    _root: _rootRef,
+    _ref: _ref,
+    _refCreatedAt: _ref,
+    _modify: undefined
   };
 }
 

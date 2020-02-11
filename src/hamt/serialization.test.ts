@@ -58,6 +58,39 @@ describe("hamt serialization", () => {
       expect(map2.get("foo")).toBe("wat");
     });
 
+    it("should be deserializable with nested hamts", () => {
+      const mapJson = hamt.empty
+        .set("nested", hamt.empty.set("foo", "bar"))
+        .serialize();
+
+      const map1 = hamt.deserialize(mapJson);
+      const map2 = map1.set("nested", 5);
+
+      expect(map1.get("nested").get("foo")).toBe("bar");
+      expect(map2.get("nested")).toBe(5);
+    });
+
+    it("should handle deep nesting", () => {
+      const mapJson = hamt.empty
+        .set(
+          "one",
+          hamt.empty
+            .set("two", hamt.empty.set("three", hamt.empty.set("four", 1234)))
+            .set("sibling", "hello")
+        )
+        .serialize();
+
+      const map = hamt.deserialize(mapJson);
+
+      expect(
+        map
+          .get("one")
+          .get("two")
+          .get("three")
+          .get("four")
+      ).toBe(1234);
+    });
+
     it("should throw errors on undeserializable input", () => {
       expect(() => {
         hamt.deserialize("{}");
@@ -67,10 +100,9 @@ describe("hamt serialization", () => {
         hamt.deserialize('{"_root": "1234"}');
       }).toThrow();
 
-      // TODO: this should throw as the output tree will not be valid
       expect(() => {
         hamt.deserialize('{"_root": "1234", "1234":{}}');
-      }).not.toThrow();
+      }).toThrow();
     });
   });
 });
