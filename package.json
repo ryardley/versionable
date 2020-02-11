@@ -24,7 +24,6 @@
     "typescript": "^3.7.5"
   },
   "dependencies": {
-    "crypto-hash": "^1.2.2",
     "js-sha1": "^0.6.0"
   },
   "files": [
