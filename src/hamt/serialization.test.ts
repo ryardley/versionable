@@ -1,6 +1,12 @@
 import hamt from ".";
 
 describe("hamt serialization", () => {
+  describe("basic behaviour", () => {
+    it("should be ok with accessing properties that dont exist", () => {
+      const map = hamt.empty.set("foo", "bar");
+      expect(map.get("bing")).toBeUndefined();
+    });
+  });
   describe("serialize()", () => {
     it("should serialize to the correct json", () => {
       expect(

@@ -1,13 +1,12 @@
 // Much of this file has been shamelessly lifted from Matt Bierner's excellent work
 // https://github.com/mattbierner/hamt
 
-// TODO: this file is a mess is huge and should be split up to make things simpler
+// TODO: this file is a big hot mess is huge and should be split up to make things simpler
 // TODO: extract hamt assignment
 // TODO: extract Map
 // TODO: extract MapIterator
 // TODO: extract functional interface
 
-import sha1 from "js-sha1";
 import {
   QuickHash,
   LeafTrieNode,
@@ -26,9 +25,8 @@ import {
   MapNodeSerialized
 } from "./types";
 
-function hashObject(obj: any) {
-  return sha1(JSON.stringify(obj));
-}
+import hashObject from "../utils/hashObject";
+import sha1 from "js-sha1";
 
 const id = (a: any) => a;
 
@@ -576,7 +574,7 @@ const empty__modify = (
 /*
  ******************************************************************************/
 
-class Map {
+export class Map {
   __hamt_isMap = true;
 
   constructor(public root: TrieNode | undefined, public size: number) {}
@@ -597,7 +595,7 @@ class Map {
     return getHash(hash, key, this);
   }
 
-  get(key: any, alt: any) {
+  get(key: any, alt?: any) {
     return tryGet(alt, key, this);
   }
   hasHash(hash: QuickHash, key: any) {
