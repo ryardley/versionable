@@ -1,11 +1,13 @@
 {
   "name": "versionable",
   "version": "0.0.0",
-  "main": "index.js",
+  "main": "dist/index.js",
   "author": "Rudi Yardley",
   "license": "MIT",
   "scripts": {
     "start": "tsc --watch",
+    "build": "tsc",
+    "clean": "rm -rf dist/*",
     "test": "jest"
   },
   "devDependencies": {
@@ -24,5 +26,8 @@
   "dependencies": {
     "crypto-hash": "^1.2.2",
     "js-sha1": "^0.6.0"
-  }
+  },
+  "files": [
+    "dist"
+  ]
 }
