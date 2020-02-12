@@ -23,12 +23,17 @@ export type HamtLookup = {
 export interface IVersionable {
   set: (key: Key, value: any) => IVersionable;
   get: (key: Key) => any;
-  checkout: (commitHash: string) => Commit;
-  commit: (message?: string) => Commit;
+  checkout: (commitHash: string) => IVersionable;
+  commit: (message?: string) => IVersionable;
   log: () => Commit[];
   setIn: (keys: Key[], value: any) => IVersionable;
   getIn: (keys: Key[]) => any;
 
   fromJS: (obj: any) => IVersionable;
   toJS: () => any;
+  status: {
+    head: string;
+    headCommit: Commit;
+    hasChanges: boolean;
+  };
 }

@@ -9,8 +9,7 @@ describe("Versionable", () => {
       });
 
       it("should have a chainable interface", () => {
-        const store = new Versionable();
-        store.set("foo", "bar").set("bing", "bop");
+        const store = new Versionable().set("foo", "bar").set("bing", "bop");
         expect(store.get("foo")).toBe("bar");
         expect(store.get("bing")).toBe("bop");
       });
@@ -18,9 +17,9 @@ describe("Versionable", () => {
 
     describe("setIn()", () => {
       it("should deeply set a value in the store", () => {
-        const store = new Versionable();
-        store.setIn(["one", "two", "three"], 3);
-        store.setIn(["one", "side"], "this is on the side");
+        const store = new Versionable()
+          .setIn(["one", "two", "three"], 3)
+          .setIn(["one", "side"], "this is on the side");
         expect(store.toJS()).toEqual({
           one: {
             side: "this is on the side",
@@ -33,12 +32,14 @@ describe("Versionable", () => {
       it("should clobber any values in the way", () => {
         const store = new Versionable();
 
-        store.fromJS({
-          one: "hello"
-        });
-
-        store.setIn(["one", "two"], 3);
-        expect(store.toJS()).toEqual({
+        expect(
+          store
+            .fromJS({
+              one: "hello"
+            })
+            .setIn(["one", "two"], 3)
+            .toJS()
+        ).toEqual({
           one: {
             two: 3
           }
@@ -47,9 +48,7 @@ describe("Versionable", () => {
     });
     describe("getIn()", () => {
       it("should deeply set a value in the store", () => {
-        const store = new Versionable();
-
-        store.fromJS({
+        const store = new Versionable().fromJS({
           one: {
             two: {
               three: 4
@@ -64,13 +63,12 @@ describe("Versionable", () => {
 
     describe("js interop", () => {
       it("should accept JS objects", () => {
-        const store = new Versionable();
-
-        store.fromJS({
+        const store = new Versionable().fromJS({
           name: "Rudi",
           age: 43,
           occupation: "Web Developer"
         });
+
         expect(store.toJS()).toEqual({
           name: "Rudi",
           age: 43,
@@ -79,14 +77,14 @@ describe("Versionable", () => {
       });
 
       it("should accept deeply nested JS objects", () => {
-        const store = new Versionable();
-        store.fromJS({
+        const store = new Versionable().fromJS({
           one: {
             two: {
               three: 3
             }
           }
         });
+
         expect(
           store
             .get("one")

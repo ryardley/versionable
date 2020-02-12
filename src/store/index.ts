@@ -8,6 +8,7 @@ function deeplySetIn(map: Map, keys: Key[], value: any): Map {
 
   if (keyTail.length > 0) {
     // NOTE: this will possibly overwrite arrays?
+    // TODO: Write a test for arrays
     const currentValue = map.get(keyCurrent);
     const newMap = hamt.isMap(currentValue) ? currentValue : hamt.empty;
     return map.set(keyCurrent, deeplySetIn(newMap, keyTail, value));
@@ -44,20 +45,64 @@ function crawlLog(
   return [...list, commit, ...tail];
 }
 
+const instanceMap = new WeakMap();
+
 export default class Versionable implements IVersionable {
-  _workspace: Map = hamt.empty;
-  _head: string = "-1";
-  _commits: CommitLookup = {};
-  _hamt: HamtLookup = {};
+  private _workspace: Map;
+  private _head: string;
+  private _commits: CommitLookup;
+  private _hamt: HamtLookup;
+
+  constructor(versionable?: Versionable) {
+    const cloneProps = versionable?.getPropsForClone() || {
+      _workspace: hamt.empty as Map,
+      _head: "-1",
+      _commits: {},
+      _hamt: {}
+    };
+
+    // Have to explcitly set the props here
+    this._workspace = cloneProps._workspace;
+    this._head = cloneProps._head;
+    this._commits = cloneProps._commits;
+    this._hamt = cloneProps._hamt;
+    return this;
+  }
+
+  // Because protected props dont appear on the type
+  // they cause a TS error when we try to use them
+  // So we need to use a func to expose them
+  protected getPropsForClone() {
+    return {
+      _workspace: this._workspace,
+      _head: this._head,
+      _commits: this._commits,
+      _hamt: this._hamt
+    };
+  }
+
+  private getNewInstance() {
+    const newThis = new Versionable(this);
+    instanceMap.set(this._workspace, newThis);
+    return newThis;
+  }
+
+  // Return a new instance that tracks the instances _workspace object reference
+  private newImmutableInstance(forceNew: boolean = false) {
+    if (forceNew) return this.getNewInstance();
+    const cacheInstance = instanceMap.get(this._workspace);
+    if (cacheInstance) return cacheInstance;
+    return this.getNewInstance();
+  }
 
   set(key: Key, value: any) {
     this._workspace = this._workspace.set(key, value);
-    return this;
+    return this.newImmutableInstance();
   }
 
   setIn(keys: Key[], value: any) {
     this._workspace = deeplySetIn(this._workspace, keys, value);
-    return this;
+    return this.newImmutableInstance();
   }
 
   getIn(keys: Key[]) {
@@ -70,7 +115,7 @@ export default class Versionable implements IVersionable {
 
   fromJS(obj: any) {
     this._workspace = hamt.fromJS(obj);
-    return this;
+    return this.newImmutableInstance();
   }
 
   toJS() {
@@ -97,13 +142,15 @@ export default class Versionable implements IVersionable {
     this._head = commitRef;
     this._hamt[treeRef] = this._workspace;
     this._commits[commitRef] = commit;
-    return commit;
+    return this.newImmutableInstance(true);
+  }
+
+  hasChanges() {
+    return this._workspace.root?._ref() !== this._commits[this._head].treeId;
   }
 
   checkout(commitRef: string) {
-    // TODO: If workspace ref does not equal this._head then error.
-    const wsRef = this._workspace.root?._ref();
-    if (wsRef !== this._commits[this._head].treeId) {
+    if (this.hasChanges()) {
       throw new Error(
         "Workspace is not clean! You need to commit your changes before moving to a new commit."
       );
@@ -113,6 +160,19 @@ export default class Versionable implements IVersionable {
 
     this._workspace = this._hamt[treeId];
     this._head = commit.id;
-    return commit;
+    return this.newImmutableInstance(true);
   }
+
+  get status() {
+    return {
+      head: this._head,
+      headCommit: this._commits[this._head],
+      hasChanges: this.hasChanges(),
+      _commitRefs: this._commits
+    };
+  }
+}
+
+export function createStore(store?: Versionable) {
+  return new Versionable(store);
 }
