@@ -1,8 +1,8 @@
 # Versionable
 
-An event driven memory efficient version control data container.
+This is experimental and not ready for use quite yet (eta March 2020).
 
-This is a work in progress and not ready for use quite yet (eta March 2020).
+An event driven memory efficient version control data container.
 
 ```ts
 const store = new Versionable();
